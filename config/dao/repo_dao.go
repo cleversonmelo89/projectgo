@@ -8,7 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-type MoviesDAO struct {
+type RepoDao struct {
 	Server   string
 	Database string
 }
@@ -16,40 +16,40 @@ type MoviesDAO struct {
 var db *mgo.Database
 
 const (
-	COLLECTION = "movies"
+	COLLECTION = "repo"
 )
 
-func (m *MoviesDAO) Connect() {
-	session, err := mgo.Dial(m.Server)
+func (r *RepoDAO) Connect() {
+	session, err := mgo.Dial(r.Server)
 	if err != nil {
 		log.Fatal(err)
 	}
-	db = session.DB(m.Database)
+	db = session.DB(r.Database)
 }
 
-func (m *MoviesDAO) GetAll() ([]Movie, error) {
-	var movies []Movie
-	err := db.C(COLLECTION).Find(bson.M{}).All(&movies)
-	return movies, err
+func (r *RepoDao) GetAll() ([]Repo, error) {
+	var repos []Repo
+	err := db.C(COLLECTION).Find(bson.M{}).All(&repos)
+	return repos, err
 }
 
-func (m *MoviesDAO) GetByID(id string) (Movie, error) {
-	var movie Movie
-	err := db.C(COLLECTION).FindId(bson.ObjectIdHex(id)).One(&movie)
-	return movie, err
+func (r *RepoDao) GetByID(id string) (Repo, error) {
+	var repo Repo
+	err := db.C(COLLECTION).FindId(bson.ObjectIdHex(id)).One(&repo)
+	return repo, err
 }
 
-func (m *MoviesDAO) Create(movie Movie) error {
-	err := db.C(COLLECTION).Insert(&movie)
+func (r *RepoDao) Create(repo Repo) error {
+	err := db.C(COLLECTION).Insert(&repo)
 	return err
 }
 
-func (m *MoviesDAO) Delete(id string) error {
+func (r *RepoDao) Delete(id string) error {
 	err := db.C(COLLECTION).RemoveId(bson.ObjectIdHex(id))
 	return err
 }
 
-func (m *MoviesDAO) Update(id string, movie Movie) error {
-	err := db.C(COLLECTION).UpdateId(bson.ObjectIdHex(id), &movie)
+func (r *RepoDao) Update(id string, repo Repo) error {
+	err := db.C(COLLECTION).UpdateId(bson.ObjectIdHex(id), &repo)
 	return err
 }
