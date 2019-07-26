@@ -19,7 +19,7 @@ const (
 	COLLECTION = "repo"
 )
 
-func (r *RepoDAO) Connect() {
+func (r *RepoDao) Connect() {
 	session, err := mgo.Dial(r.Server)
 	if err != nil {
 		log.Fatal(err)
