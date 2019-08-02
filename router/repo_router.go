@@ -5,9 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	. "projectgo/config/dao"
-	. "projectgo/models"
 	"gopkg.in/mgo.v2/bson"
+
+	. "../config/dao"
+	. "../models"
 )
 
 var dao = RepoDao{}
@@ -22,7 +23,6 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.WriteHeader(code)
 	w.Write(response)
 }
-
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
 	routes, err := dao.GetAll()

@@ -3,8 +3,8 @@ package dao
 import (
 	"log"
 
-	. "github.com/programadriano/go-restapi/models"
-	mgo "gopkg.in/mgo.v2"
+	. "../../models"
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
