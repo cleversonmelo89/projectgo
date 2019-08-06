@@ -28,6 +28,7 @@ func init() {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/repo", reporouter.GetAll).Methods("GET")
+	r.HandleFunc("/api/v1/repo/{user}", reporouter.GetReposByUser).Methods("GET")
 	r.HandleFunc("/api/v1/repo/{id}", reporouter.GetByID).Methods("GET")
 	r.HandleFunc("/api/v1/repo", reporouter.Create).Methods("POST")
 	r.HandleFunc("/api/v1/repo/{id}", reporouter.Update).Methods("PUT")

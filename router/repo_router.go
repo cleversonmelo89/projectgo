@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2/bson"
 
+	"../client"
 	. "../config/dao"
 	. "../models"
 )
@@ -31,6 +32,24 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithJson(w, http.StatusOK, routes)
+}
+
+func GetReposByUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var url = "https://api.github.com/users/"+ params["user"] +"/starred"
+
+	resp, err := client.GetReposGitByUser(url)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var repository []Repository
+
+	json.Unmarshal(resp.Body(), &repository)
+
+	respondWithJson(w, http.StatusOK, repository)
 }
 
 func GetByID(w http.ResponseWriter, r *http.Request) {
