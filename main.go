@@ -31,8 +31,9 @@ func main() {
 	r.HandleFunc("/api/v1/repo/{user}", reporouter.GetReposByUser).Methods("GET")
 	r.HandleFunc("/api/v1/repo/{id}", reporouter.GetByID).Methods("GET")
 	r.HandleFunc("/api/v1/repo", reporouter.Create).Methods("POST")
-	r.HandleFunc("/api/v1/repo/{id}", reporouter.Update).Methods("PUT")
-	r.HandleFunc("/api/v1/repo/{id}", reporouter.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/repo/{id_git}/addTag", reporouter.AddTag).Methods("POST")
+	r.HandleFunc("/api/v1/repo/{id_git}/deleteTag", reporouter.DeleteTag).Methods("DELETE")
+	r.HandleFunc("/api/v1/repo/{id_git}/editTag/tag/{tag_name}/new/{tag}", reporouter.EditTag).Methods("PATCH")
 
 	var port = ":3000"
 	fmt.Println("Server running in port:", port)

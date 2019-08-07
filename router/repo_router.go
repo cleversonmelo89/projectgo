@@ -36,7 +36,7 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 
 func GetReposByUser(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	var url = "https://api.github.com/users/"+ params["user"] +"/starred"
+	var url = "https://api.github.com/users/" + params["user"] + "/starred"
 
 	resp, err := client.GetReposGitByUser(url)
 
@@ -45,16 +45,24 @@ func GetReposByUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var repository []Repository
+	//var repository []Repository
+	var repo []Repo
 
-	json.Unmarshal(resp.Body(), &repository)
+	json.Unmarshal(resp.Body(), &repo)
 
-	respondWithJson(w, http.StatusOK, repository)
+	for index, _ := range repo {
+		repo[index].BsonID = bson.NewObjectId()
+
+		if err := dao.Create(repo[index]); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+	}
+	respondWithJson(w, http.StatusCreated, repo)
 }
 
 func GetByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	repo, err := dao.GetByID(params["id"])
+	repo, err := dao.GetByIDGit(params["id"])
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
 		return
@@ -69,7 +77,8 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	repo.ID = bson.NewObjectId()
+	repo.BsonID = bson.NewObjectId()
+
 	if err := dao.Create(repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -77,27 +86,89 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusCreated, repo)
 }
 
-func Update(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+func AddTag(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	var repo Repo
-	if err := json.NewDecoder(r.Body).Decode(&repo); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+	tag := BuildTag(w, r)
+
+	repo, err := dao.GetByIDGit(params["id_git"])
+
+	for _, tagName := range tag {
+		for _, repoTagName := range repo.Tag {
+			if repoTagName.TagName == tagName.TagName {
+				respondWithError(w, http.StatusConflict, "Tag Name: '"+tagName.TagName+"' duplicate")
+				return
+			}
+		}
+		repo.Tag = append(repo.Tag, tagName)
+	}
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
 		return
 	}
-	if err := dao.Update(params["id"], repo); err != nil {
+
+	if err := dao.Update(params["id_git"], repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, map[string]string{"result": repo.URL + " atualizado com sucesso!"})
+	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
 }
 
-func Delete(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+func DeleteTag(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	if err := dao.Delete(params["id"]); err != nil {
+	tag := BuildTag(w, r)
+
+	repo, err := dao.GetByIDGit(params["id_git"])
+
+	for _, tagName := range tag {
+		for index, repoTagName := range repo.Tag {
+			if repoTagName.TagName == tagName.TagName {
+				repo.Tag = repo.Tag[:index+copy(repo.Tag[index:], repo.Tag[index+1:])]
+			}
+		}
+	}
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+
+	if err := dao.Update(params["id_git"], repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, map[string]string{"result": "success"})
+	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
+}
+
+func EditTag(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	repo, err := dao.GetByIDGit(params["id_git"])
+
+	for index, repoTagName := range repo.Tag {
+		if repoTagName.TagName == params["tag_name"] {
+			repo.Tag[index].TagName = params["tag"]
+		}
+	}
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+
+	if err := dao.Update(params["id_git"], repo); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
+}
+
+func BuildTag(w http.ResponseWriter, r *http.Request) []Tags {
+	defer r.Body.Close()
+	var tag []Tags
+	if err := json.NewDecoder(r.Body).Decode(&tag); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return tag
+	}
+	return tag
 }

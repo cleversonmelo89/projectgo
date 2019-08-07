@@ -3,7 +3,15 @@ package models
 import "gopkg.in/mgo.v2/bson"
 
 type Repo struct {
-	ID      bson.ObjectId `bson:"_id" json:"id"`
-	URL     string        `bson:"html_url" json:"html_url"`
-	Starred bool          `bson:"starred" json:"starred"`
+	BsonID      bson.ObjectId `bson:"_id" json:"bson_id"`
+	ID          int64         `bson:"id_git" json:"id"`
+	HtmlUrl     string        `bson:"html_url" json:"html_url"`
+	Name        string        `bson:"name" json:"name"`
+	Description string        `bson:"description" json:"description"`
+	Language    string        `bson:"language" json:"language"`
+	Tag         []Tags        `json:"tags"`
+}
+
+type Tags struct {
+	TagName string `bson:"tag_name" json:"tag_name"`
 }
