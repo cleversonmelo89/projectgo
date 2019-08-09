@@ -27,17 +27,24 @@ func (r *RepoDao) Connect() {
 	db = session.DB(r.Database)
 }
 
-func (r *RepoDao) GetAll() ([]Repo, error) {
+func (r *RepoDao) GetAll() (TotalRepo, error) {
 	var repos []Repo
+	var total TotalRepo
 	err := db.C(COLLECTION).Find(bson.M{}).All(&repos)
-	return repos, err
+	total.Total = len(repos)
+	total.Repo = repos
+	return total, err
 }
 
 func (r *RepoDao) GetByIDGit(id string) (Repo, error) {
 	var repo Repo
-
 	err := db.C(COLLECTION).Find(buildQueryIdGit(id)).One(&repo)
+	return repo, err
+}
 
+func (r *RepoDao) GetRepoByTag(tagsArray []bson.RegEx) ([]Repo, error) {
+	var repo []Repo
+	err := db.C(COLLECTION).Find(buildQueryByRepoTag(tagsArray)).All(&repo)
 	return repo, err
 }
 
@@ -59,5 +66,10 @@ func (r *RepoDao) Update(id string, repo Repo) error {
 func buildQueryIdGit(id string) bson.M {
 	idGit, _ := strconv.Atoi(id)
 	query := bson.M{"id_git": idGit}
+	return query
+}
+
+func buildQueryByRepoTag(tagsArray []bson.RegEx) bson.M {
+	query := bson.M{"tag.tag_name": bson.M{"$in": tagsArray}}
 	return query
 }

@@ -1,15 +1,16 @@
 package reporouter
 
 import (
-	"encoding/json"
-	"net/http"
-
-	"github.com/gorilla/mux"
-	"gopkg.in/mgo.v2/bson"
-
 	"../client"
 	. "../config/dao"
 	. "../models"
+	"strconv"
+	"strings"
+
+	"encoding/json"
+	"github.com/gorilla/mux"
+	"gopkg.in/mgo.v2/bson"
+	"net/http"
 )
 
 var dao = RepoDao{}
@@ -26,12 +27,12 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 }
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
-	routes, err := dao.GetAll()
+	total, err := dao.GetAll()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, routes)
+	respondWithJson(w, http.StatusOK, total)
 }
 
 func GetReposByUser(w http.ResponseWriter, r *http.Request) {
@@ -45,24 +46,78 @@ func GetReposByUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//var repository []Repository
 	var repo []Repo
 
 	json.Unmarshal(resp.Body(), &repo)
 
-	for index, _ := range repo {
-		repo[index].BsonID = bson.NewObjectId()
+	var getRepo Repo
 
-		if err := dao.Create(repo[index]); err != nil {
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+	for index, repository := range repo {
+		getRepo, err = dao.GetByIDGit(strconv.FormatInt(repository.ID, 10))
+
+		if getRepo.ID == 0{
+			repo[index].BsonID = bson.NewObjectId()
+
+			if err := dao.Create(repo[index]); err != nil {
+				respondWithError(w, http.StatusInternalServerError, err.Error())
+			}
 		}
 	}
-	respondWithJson(w, http.StatusCreated, repo)
+	respondWithJson(w, http.StatusOK, repo)
 }
 
-func GetByID(w http.ResponseWriter, r *http.Request) {
+func GetRepoByTag(w http.ResponseWriter, r *http.Request) {
+	tags := BuildTag(w, r)
+
+	var tagsArray []bson.RegEx
+	var repo []Repo
+
+	for _, tag := range tags {
+		tagsArray = append(tagsArray, bson.RegEx{Pattern: ".*" + tag.TagName + ".*"})
+	}
+
+	repo, err := dao.GetRepoByTag(tagsArray)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+	respondWithJson(w, http.StatusOK, repo)
+}
+
+func GetSuggestions(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	repo, err := dao.GetByIDGit(params["id"])
+
+	var repo Repo
+	var suggestions []Suggestions
+
+	repo, err := dao.GetByIDGit(params["id_git"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+
+	if repo.Name != "" {
+		for index, suggestion := range strings.Split(repo.Name, `-`) {
+			var suggestionName Suggestions
+			suggestionName.SuggestionName = suggestion
+			suggestions = append(suggestions, suggestionName)
+			if index == len(strings.Split(repo.Name, `-`))-1 {
+				if repo.Language != "" {
+					suggestionName.SuggestionName = repo.Language
+					suggestions = append(suggestions, suggestionName)
+				}
+			}
+		}
+	}
+
+	respondWithJson(w, http.StatusOK, suggestions)
+}
+
+func GetRepoByIdGit(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	repo, err := dao.GetByIDGit(params["id_git"])
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
 		return
@@ -92,6 +147,11 @@ func AddTag(w http.ResponseWriter, r *http.Request) {
 
 	repo, err := dao.GetByIDGit(params["id_git"])
 
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+
 	for _, tagName := range tag {
 		for _, repoTagName := range repo.Tag {
 			if repoTagName.TagName == tagName.TagName {
@@ -102,16 +162,11 @@ func AddTag(w http.ResponseWriter, r *http.Request) {
 		repo.Tag = append(repo.Tag, tagName)
 	}
 
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
-		return
-	}
-
 	if err := dao.Update(params["id_git"], repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
+	respondWithJson(w, http.StatusCreated, map[string]string{"result": "Tag Name adicionada com sucesso!"})
 }
 
 func DeleteTag(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +174,11 @@ func DeleteTag(w http.ResponseWriter, r *http.Request) {
 	tag := BuildTag(w, r)
 
 	repo, err := dao.GetByIDGit(params["id_git"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
 
 	for _, tagName := range tag {
 		for index, repoTagName := range repo.Tag {
@@ -128,16 +188,11 @@ func DeleteTag(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
-		return
-	}
-
 	if err := dao.Update(params["id_git"], repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
+	respondWithJson(w, http.StatusOK, map[string]string{"result": "Tag Name deletada com sucesso!"})
 }
 
 func EditTag(w http.ResponseWriter, r *http.Request) {
@@ -145,22 +200,22 @@ func EditTag(w http.ResponseWriter, r *http.Request) {
 
 	repo, err := dao.GetByIDGit(params["id_git"])
 
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
+		return
+	}
+
 	for index, repoTagName := range repo.Tag {
 		if repoTagName.TagName == params["tag_name"] {
 			repo.Tag[index].TagName = params["tag"]
 		}
 	}
 
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid Repo ID")
-		return
-	}
-
 	if err := dao.Update(params["id_git"], repo); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJson(w, http.StatusOK, map[string]string{"result": params["id_git"] + " atualizado com sucesso!"})
+	respondWithJson(w, http.StatusAccepted, map[string]string{"result": " Tag Name atualizada com sucesso!"})
 }
 
 func BuildTag(w http.ResponseWriter, r *http.Request) []Tags {

@@ -15,3 +15,12 @@ type Repo struct {
 type Tags struct {
 	TagName string `bson:"tag_name" json:"tag_name"`
 }
+
+type Suggestions struct {
+	SuggestionName string `bson:"suggestion_name" json:"suggestion_name"`
+}
+
+type TotalRepo struct {
+	Total int `bson: "total" json:"total"`
+	Repo []Repo `bson: "repo" json:"repo"`
+}
