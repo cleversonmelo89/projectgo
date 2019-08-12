@@ -61,7 +61,13 @@ func GetReposByUser(w http.ResponseWriter, r *http.Request) {
 			if err := dao.Create(repo[index]); err != nil {
 				respondWithError(w, http.StatusInternalServerError, err.Error())
 			}
+
+			respondWithJson(w, http.StatusOK, repo)
+
+			return
 		}
+
+		repo[index].BsonID = getRepo.BsonID
 	}
 	respondWithJson(w, http.StatusOK, repo)
 }
@@ -123,22 +129,6 @@ func GetRepoByIdGit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithJson(w, http.StatusOK, repo)
-}
-
-func Create(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var repo Repo
-	if err := json.NewDecoder(r.Body).Decode(&repo); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-	repo.BsonID = bson.NewObjectId()
-
-	if err := dao.Create(repo); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	respondWithJson(w, http.StatusCreated, repo)
 }
 
 func AddTag(w http.ResponseWriter, r *http.Request) {
